@@ -1,3 +1,29 @@
 server:
   port: 8080
 
+spring:
+  application:
+    name: edge-gateway
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    timeout: 3000ms
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: Asia/Shanghai
+
+gateway:
+  netty:
+    enabled: true
+    host: 0.0.0.0
+    port: 18080
+    websocket-path: /ws/device
+    auth-timeout-seconds: 5
+    heartbeat-read-idle-seconds: 90
+  redis:
+    enabled: true
+    downlink-topic: iot:downlink
+    uplink-topic: iot:uplink
+    status-topic: iot:status_event
+  mock:
+    enabled: true
