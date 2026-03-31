@@ -36,6 +36,23 @@ require_env() {
   fi
 }
 
+upload_with_progress() {
+  local source_path="$1"
+  local target_path="$2"
+
+  if command -v rsync >/dev/null 2>&1 && sshpass -p "${REMOTE_PASSWORD}" ssh -o StrictHostKeyChecking=no "${REMOTE_HOST_TARGET}" "command -v rsync >/dev/null 2>&1"; then
+    log "检测到本机和远端都已安装 rsync，使用带进度条的方式上传"
+    sshpass -p "${REMOTE_PASSWORD}" \
+      rsync -av --partial --progress \
+      -e "ssh -o StrictHostKeyChecking=no" \
+      "${source_path}" "${REMOTE_HOST_TARGET}:${target_path}"
+  else
+    log "未检测到 rsync，回退为 scp 上传"
+    sshpass -p "${REMOTE_PASSWORD}" \
+      scp -o StrictHostKeyChecking=no "${source_path}" "${REMOTE_HOST_TARGET}:${target_path}"
+  fi
+}
+
 find_jar() {
   local jar
   jar="$(find "${SCRIPT_DIR}/target" -maxdepth 1 -type f -name '*.jar' ! -name '*original*.jar' | sort | tail -n 1)"
@@ -82,12 +99,10 @@ sshpass -p "${REMOTE_PASSWORD}" \
   ssh -o StrictHostKeyChecking=no "${REMOTE_HOST_TARGET}" "mkdir -p '${REMOTE_TMP_DIR}'"
 
 log "上传 Dockerfile 到远端临时目录"
-sshpass -p "${REMOTE_PASSWORD}" \
-  scp -o StrictHostKeyChecking=no "${SCRIPT_DIR}/Dockerfile" "${REMOTE_HOST_TARGET}:${REMOTE_TMP_DOCKERFILE_PATH}"
+upload_with_progress "${SCRIPT_DIR}/Dockerfile" "${REMOTE_TMP_DOCKERFILE_PATH}"
 
 log "上传 jar 到远端临时目录并统一命名为 ${APP_NAME}.jar"
-sshpass -p "${REMOTE_PASSWORD}" \
-  scp -o StrictHostKeyChecking=no "${JAR_PATH}" "${REMOTE_HOST_TARGET}:${REMOTE_TMP_JAR_PATH}"
+upload_with_progress "${JAR_PATH}" "${REMOTE_TMP_JAR_PATH}"
 
 log "开始在远端构建和发布容器"
 sshpass -p "${REMOTE_PASSWORD}" \
