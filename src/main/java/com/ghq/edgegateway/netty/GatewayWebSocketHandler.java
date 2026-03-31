@@ -17,6 +17,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.timeout.IdleStateEvent;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
@@ -88,9 +89,7 @@ public class GatewayWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
             return;
         }
         if (GatewayMessageType.PING == messageType) {
-            writeMessage(ctx.channel(), WsEnvelope.builder()
-                    .type(GatewayMessageType.PONG.getCode())
-                    .build());
+            writeMessage(ctx.channel(), Collections.singletonMap("type", GatewayMessageType.PONG.getCode()));
             return;
         }
         if (GatewayMessageType.AUTH_REQ == messageType) {
