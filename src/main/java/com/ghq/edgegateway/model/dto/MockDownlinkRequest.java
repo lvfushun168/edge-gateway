@@ -18,5 +18,7 @@ public class MockDownlinkRequest {
 
     private String msgId;
 
+    private Long timestamp;
+
     private Map<String, Object> payload;
 }

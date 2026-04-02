@@ -10,6 +10,7 @@ import com.ghq.edgegateway.model.dto.WsEnvelope;
 import com.ghq.edgegateway.model.enums.GatewayMessageType;
 import com.ghq.edgegateway.redis.GatewayRedisPublisher;
 import com.ghq.edgegateway.service.DeviceAuthService;
+import com.ghq.edgegateway.service.GatewayMessageValidator;
 import com.ghq.edgegateway.util.JsonUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -40,17 +41,21 @@ public class GatewayWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
 
     private final GatewayRedisPublisher gatewayRedisPublisher;
 
+    private final GatewayMessageValidator gatewayMessageValidator;
+
     private final JsonUtil jsonUtil;
 
     public GatewayWebSocketHandler(GatewayNettyProperties gatewayNettyProperties,
                                    DeviceAuthService deviceAuthService,
                                    DeviceSessionRegistry deviceSessionRegistry,
                                    GatewayRedisPublisher gatewayRedisPublisher,
+                                   GatewayMessageValidator gatewayMessageValidator,
                                    JsonUtil jsonUtil) {
         this.gatewayNettyProperties = gatewayNettyProperties;
         this.deviceAuthService = deviceAuthService;
         this.deviceSessionRegistry = deviceSessionRegistry;
         this.gatewayRedisPublisher = gatewayRedisPublisher;
+        this.gatewayMessageValidator = gatewayMessageValidator;
         this.jsonUtil = jsonUtil;
     }
 
@@ -81,8 +86,17 @@ public class GatewayWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
         String text = frame.text();
-        WsEnvelope<Object> envelope = jsonUtil.fromJson(text, new TypeReference<WsEnvelope<Object>>() {
-        });
+        WsEnvelope<Object> envelope;
+        try {
+            envelope = jsonUtil.fromJson(text, new TypeReference<WsEnvelope<Object>>() {
+            });
+            gatewayMessageValidator.validateInboundEnvelope(envelope);
+        } catch (Exception exception) {
+            log.warn("收到非法WebSocket消息, channelId={}, payload={}, reason={}",
+                    ctx.channel().id().asShortText(), text, exception.getMessage());
+            ctx.close();
+            return;
+        }
         GatewayMessageType messageType = GatewayMessageType.fromCode(envelope.getType());
         if (messageType == null) {
             log.warn("收到未知消息类型, payload={}", text);
@@ -176,7 +190,12 @@ public class GatewayWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
         if (authFuture != null) {
             authFuture.cancel(false);
         }
-        deviceSessionRegistry.bind(payload.getDeviceId(), channel);
+        Channel previousChannel = deviceSessionRegistry.bind(payload.getDeviceId(), channel);
+        if (previousChannel != null && previousChannel != channel && previousChannel.isActive()) {
+            log.info("检测到设备重复登录，关闭旧连接, deviceId={}, oldChannelId={}, newChannelId={}",
+                    payload.getDeviceId(), previousChannel.id().asShortText(), channel.id().asShortText());
+            previousChannel.close();
+        }
         gatewayRedisPublisher.publishStatus(DeviceStatusEvent.builder()
                 .deviceId(payload.getDeviceId())
                 .event("online")

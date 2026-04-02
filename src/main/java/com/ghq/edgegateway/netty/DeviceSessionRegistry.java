@@ -22,11 +22,13 @@ public class DeviceSessionRegistry {
      *
      * @param deviceId 设备ID
      * @param channel 连接
+     * @return 旧连接
      */
-    public void bind(String deviceId, Channel channel) {
-        channelByDeviceId.put(deviceId, channel);
+    public Channel bind(String deviceId, Channel channel) {
+        Channel previousChannel = channelByDeviceId.put(deviceId, channel);
         channel.attr(ChannelAttributeConstants.DEVICE_ID).set(deviceId);
         channel.attr(ChannelAttributeConstants.AUTHENTICATED).set(Boolean.TRUE);
+        return previousChannel;
     }
 
     /**
@@ -48,7 +50,10 @@ public class DeviceSessionRegistry {
     public String unbind(Channel channel) {
         String deviceId = channel.attr(ChannelAttributeConstants.DEVICE_ID).get();
         if (deviceId != null) {
-            channelByDeviceId.remove(deviceId, channel);
+            boolean removed = channelByDeviceId.remove(deviceId, channel);
+            if (!removed) {
+                return null;
+            }
         }
         return deviceId;
     }

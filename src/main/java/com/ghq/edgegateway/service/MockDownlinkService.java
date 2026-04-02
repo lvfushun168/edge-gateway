@@ -17,8 +17,12 @@ public class MockDownlinkService {
 
     private final GatewayRedisPublisher gatewayRedisPublisher;
 
-    public MockDownlinkService(GatewayRedisPublisher gatewayRedisPublisher) {
+    private final GatewayMessageValidator gatewayMessageValidator;
+
+    public MockDownlinkService(GatewayRedisPublisher gatewayRedisPublisher,
+                               GatewayMessageValidator gatewayMessageValidator) {
         this.gatewayRedisPublisher = gatewayRedisPublisher;
+        this.gatewayMessageValidator = gatewayMessageValidator;
     }
 
     /**
@@ -27,10 +31,11 @@ public class MockDownlinkService {
      * @param request 请求参数
      */
     public void publish(MockDownlinkRequest request) {
+        gatewayMessageValidator.validateMockDownlink(request);
         WsEnvelope<Object> msg = WsEnvelope.builder()
                 .msgId(request.getMsgId() == null ? UUID.randomUUID().toString() : request.getMsgId())
                 .type(request.getType())
-                .timestamp(System.currentTimeMillis())
+                .timestamp(request.getTimestamp() == null ? System.currentTimeMillis() : request.getTimestamp())
                 .payload(request.getPayload())
                 .build();
         RedisDownlinkMessage message = new RedisDownlinkMessage();
