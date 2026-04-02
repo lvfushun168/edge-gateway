@@ -13,6 +13,8 @@ public enum GatewayMessageType {
     SYS_CONFIG_ACK("sys_config_ack"),
     CHAT_MSG("chat_msg"),
     CHAT_REPLY("chat_reply"),
+    REMOTE_CMD("remote_cmd"),
+    REMOTE_CMD_RESULT("remote_cmd_result"),
     PING("ping"),
     PONG("pong");
 
