@@ -99,7 +99,15 @@ public class GatewayWebSocketHandler extends SimpleChannelInboundHandler<TextWeb
         }
         GatewayMessageType messageType = GatewayMessageType.fromCode(envelope.getType());
         if (messageType == null) {
-            log.warn("收到未知消息类型, payload={}", text);
+            if (!Boolean.TRUE.equals(ctx.channel().attr(ChannelAttributeConstants.AUTHENTICATED).get())) {
+                log.warn("未鉴权连接发送未知消息类型，关闭连接, channelId={}, payload={}",
+                        ctx.channel().id().asShortText(), text);
+                ctx.close();
+                return;
+            }
+            log.info("收到未注册消息类型，按透传处理, type={}, channelId={}",
+                    envelope.getType(), ctx.channel().id().asShortText());
+            handleBusinessMessage(ctx.channel(), envelope);
             return;
         }
         if (GatewayMessageType.PING == messageType) {

@@ -36,11 +36,17 @@ public class GatewayMessageValidator {
         if (envelope == null || !StringUtils.hasText(envelope.getType())) {
             throw new BusinessException(400, "消息type不能为空");
         }
-        GatewayMessageType messageType = GatewayMessageType.fromCode(envelope.getType());
-        if (messageType == null) {
-            throw new BusinessException(400, "未知消息类型");
-        }
+        String normalizedType = envelope.getType().trim();
+        envelope.setType(normalizedType);
+        GatewayMessageType messageType = GatewayMessageType.fromCode(normalizedType);
         if (GatewayMessageType.PING == messageType || GatewayMessageType.PONG == messageType) {
+            return;
+        }
+        // 对于未注册的新消息类型，网关保持透传，不在接入层做语义阻断。
+        if (messageType == null) {
+            if (envelope.getPayload() == null) {
+                throw new BusinessException(400, "消息payload不能为空");
+            }
             return;
         }
         if (envelope.getPayload() == null) {
