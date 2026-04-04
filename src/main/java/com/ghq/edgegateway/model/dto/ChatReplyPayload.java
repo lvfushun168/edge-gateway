@@ -3,6 +3,8 @@ package com.ghq.edgegateway.model.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 聊天上行载荷。
  */
@@ -33,4 +35,6 @@ public class ChatReplyPayload {
 
     @JsonProperty("error_message")
     private String errorMessage;
+
+    private List<ChatAttachmentPayload> attachments;
 }
